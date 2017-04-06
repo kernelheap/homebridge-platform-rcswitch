@@ -31,6 +31,9 @@ RCSwitchPlatform.prototype.accessories = function(callback) {
     self.config.switches.forEach(function(sw) {
         self.accessories.push(new RCSwitchAccessory(sw, self.log, self.config));
     });
+    self.config.contact.forEach(function(sw) {
+	self.accessories.push(new RCContactAccessory(sw, self.log, self.config));
+    });
     setTimeout(self.listen.bind(self),10);
     callback(self.accessories);
 }
@@ -72,6 +75,46 @@ RCSwitchAccessory.prototype.notify = function(code) {
     }
 }
 RCSwitchAccessory.prototype.getServices = function() {
+    var self = this;
+    var services = [];
+    var service = new Service.AccessoryInformation();
+    service.setCharacteristic(Characteristic.Name, self.name)
+        .setCharacteristic(Characteristic.Manufacturer, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.Model, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.SerialNumber, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.FirmwareRevision, '1.0.0')
+        .setCharacteristic(Characteristic.HardwareRevision, '1.0.0');
+    services.push(service);
+    services.push(self.service);
+    return services;
+}
+
+function RCContactAccessory(sw, log, config) {
+    var self = this;
+    self.name = sw.name;
+    self.sw = sw;
+    self.log = log;
+    self.config = config;
+    self.currentState = false;
+    self.Timer;
+
+    self.service = new Service.ContactSensor(self.name);
+}
+RCContactAccessory.prototype.notify = function(code) {
+    var self = this;
+    if(this.sw.on.code === code) {
+        self.log("%s is turned on", self.sw.name);
+        self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
+	clearTimeout(self.Timer);
+	self.Timer = setTimeout(function() {
+			self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
+			}.bind(self), 5000);
+    } else if (this.sw.off.code === code) {
+        self.log("%s is turned off", self.sw.name);
+	clearTimeout(self.Timer);
+    }
+}
+RCContactAccessory.prototype.getServices = function() {
     var self = this;
     var services = [];
     var service = new Service.AccessoryInformation();
