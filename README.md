@@ -6,6 +6,7 @@ RCSwitch plugin for the awesome  [Homebridge](https://github.com/nfarina/homebri
 ## Currently supports
 - Etekcity Tap 5 port Power plug
 - other 433 Mhz remote plugs should work.
+- Support for 433 Mhz Contact Sensors. (Only supports sensor open event detection. Auto-closes after 5 seconds) 
 
 # Installation
 
@@ -53,7 +54,20 @@ Configuration sample:
                                 "pulse":188
                         }
                 }
-          ]
+          ],
+	  "contact": [
+	  	{
+		  	"name": "Main Door Contact Sensor",
+		  	"on":{
+			  	"code":xxxxx,
+			  	"pulse":189
+		  	},
+		  	"off":{
+			  	"code":xxxxx,
+			  	"pulse":189
+		  	}
+	  	}
+	  ]
         }
     ]
 }
