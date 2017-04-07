@@ -65,7 +65,7 @@ Configuration sample:
 		  	"name" : "Toggle Switch 2",
 	  		"code" : xxxxxx,
 			"pulse": 189,
-			"timeput": 500
+			"timeout": 500
 
 		}
 	  ],
