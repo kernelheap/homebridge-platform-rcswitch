@@ -55,6 +55,20 @@ Configuration sample:
                         }
                 }
           ],
+	  "toggle": [
+	  	{
+		  	"name" : Toggle Switch 1",
+	  		"code" : xxxxxx,
+			"pulse": 189
+		},
+	  	{
+		  	"name" : Toggle Switch 2",
+	  		"code" : xxxxxx,
+			"pulse": 189,
+			"timeput": 500
+
+		}
+	  ],
 	  "contact": [
 	  	{
 		  	"name": "Main Door Contact Sensor",
