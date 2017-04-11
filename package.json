@@ -18,6 +18,8 @@
         "homebridge": ">=0.2.0"
     },
     "dependencies": {
-        "moment": ">=2.4.0"
+        "moment": ">=2.4.0",
+	"request": "^2.65.0",
+	"rwlock": ">=5.0.0"
     }
 }

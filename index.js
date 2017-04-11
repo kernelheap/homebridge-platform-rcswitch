@@ -1,5 +1,7 @@
 var Service, Characteristic, LastUpdate;
 var rsswitch = require("./build/Release/rsswitch");
+var request = require("request");
+var rwlock = require("rwlock");
 
 module.exports = function(homebridge) {
     Service = homebridge.hap.Service;
@@ -101,23 +103,42 @@ function RCContactAccessory(sw, log, config) {
     self.config = config;
     self.currentState = false;
     self.Timer;
+    self.lock = new rwlock();
 
     self.service = new Service.ContactSensor(self.name);
 }
+
 RCContactAccessory.prototype.notify = function(code) {
     var self = this;
-    if(this.sw.on.code === code) {
-        self.log("%s is turned on", self.sw.name);
-        self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
-	clearTimeout(self.Timer);
-	self.Timer = setTimeout(function() {
+    self.lock.writeLock(function (release) {
+        var state = self.service.getCharacteristic(Characteristic.ContactSensorState).value;
+    	if(self.sw.on.code === code && state == false ) {
+        	self.log("%s is turned on", self.sw.name);
+        	self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
+		release();
+		if (self.config.makerkey != null && self.sw.on.trigger != null) {
+			var trigger = self.sw.on.trigger;
+			var key = self.config.makerkey;
+			var url = "https://maker.ifttt.com/trigger/"+trigger+"/with/key/"+key;
+			var method = "get";
+	    		request({ url: url, method: method }, function(err, response) {
+				if (err) {
+		          		self.log("There was a problem sending command " + url);
+		        	} else {
+					self.log(" Sent command " + url);
+		      		}
+	        	});
+		}
+		clearTimeout(self.Timer);
+		self.Timer = setTimeout(function() {
 			self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
-			}.bind(self), 5000);
-    } else if (this.sw.off.code === code) {
-        self.log("%s is turned off", self.sw.name);
-	clearTimeout(self.Timer);
-    }
+		}.bind(self), 5000);
+    	} else {
+	    	release();
+    	}
+    });
 }
+
 RCContactAccessory.prototype.getServices = function() {
     var self = this;
     var services = [];
