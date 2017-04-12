@@ -70,14 +70,34 @@ function RCSwitchAccessory(sw, log, config) {
         cb(null);
     }.bind(self));
 }
+
+function iftttTrigger(obj, key, trigger) {
+	if (key != null && trigger != null) {
+		var url = "https://maker.ifttt.com/trigger/"+trigger+"/with/key/"+key;
+		var method = "get";
+		request({ url: url, method: method }, function(err, response) {
+			if (err) {
+				obj.log("There was a problem sending command " + url);
+			} else {
+				obj.log(" Sent command " + url);
+			}
+		});
+	}
+}
+
 RCSwitchAccessory.prototype.notify = function(code) {
     var self = this;
+    var key = self.config.makerkey;
     if(this.sw.on.code === code) {
+	var trigger = self.sw.on.trigger;
         self.log("%s is turned on", self.sw.name);
         self.service.getCharacteristic(Characteristic.On).setValue(true);
+	iftttTrigger(self, key, trigger);
     } else if (this.sw.off.code === code) {
+	var trigger = self.sw.off.trigger;
         self.log("%s is turned off", self.sw.name);
         self.service.getCharacteristic(Characteristic.On).setValue(false);
+	iftttTrigger(self, key, trigger);
     }
 }
 RCSwitchAccessory.prototype.getServices = function() {
@@ -116,19 +136,7 @@ RCContactAccessory.prototype.notify = function(code) {
         	self.log("%s is turned on", self.sw.name);
         	self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
 		release();
-		if (self.config.makerkey != null && self.sw.on.trigger != null) {
-			var trigger = self.sw.on.trigger;
-			var key = self.config.makerkey;
-			var url = "https://maker.ifttt.com/trigger/"+trigger+"/with/key/"+key;
-			var method = "get";
-	    		request({ url: url, method: method }, function(err, response) {
-				if (err) {
-		          		self.log("There was a problem sending command " + url);
-		        	} else {
-					self.log(" Sent command " + url);
-		      		}
-	        	});
-		}
+		iftttTrigger(self, self.config.makerkey, self.sw.on.trigger);
 		clearTimeout(self.Timer);
 		self.Timer = setTimeout(function() {
 			self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
@@ -171,19 +179,15 @@ function RCToggleAccessory(sw, log, config) {
 RCToggleAccessory.prototype._setOn = function(on, callback) {
 
 	var self = this;
+	var currentState = self.service.getCharacteristic(Characteristic.On).value;
 	self.log("Setting switch to " + on);
 
-	if (on) {
-          rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
-		if (self.sw.timeout != null) {
-		setTimeout(function() {
-		    self.service.setCharacteristic(Characteristic.On, false);
-		}.bind(self), self.sw.timeout);
-		}
-	} else if (self.sw.timeout == null) {
-          rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
+	rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
+	if (currentState == false) {
+		iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
+	} else {
+		iftttTrigger(self, self.config.makerkey, self.sw.offTrigger);
 	}
-
 	callback();
 }
 
