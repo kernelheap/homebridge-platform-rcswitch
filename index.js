@@ -219,35 +219,65 @@ function RCMotionAccessory(sw, log, config) {
     self.log = log;
     self.config = config;
     self.currentState = false;
-    self.Timer;
+    self.onTimer;
+    self.offTimer;
     self.lock = new rwlock();
 
     self.service = new Service.MotionSensor(self.name);
 }
 
+//RCMotionAccessory.prototype.notify = function(code) {
+  //  var self = this;
+   // var timeout;
+    //self.lock.writeLock(function (release) {
+      //  var state = self.service.getCharacteristic(Characteristic.MotionDetected).value;
+    	//if(self.sw.code === code && state == false ) {
+	//	if (self.sw.timeout != null) {
+	//		timeout = self.sw.timeout;
+	//	} else {
+	//		timeout = 5000;
+	//	}
+        //	self.log("%s is turned on", self.sw.name);
+        //	self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
+	//	release();
+	//	iftttTrigger(self, self.config.makerkey, self.sw.trigger);
+	//	clearTimeout(self.Timer);
+	//	self.Timer = setTimeout(function() {
+	//		self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
+	//	}.bind(self), timeout);
+    	//} else {
+	  //  	release();
+    	//}
+    //});
+//}
+
 RCMotionAccessory.prototype.notify = function(code) {
     var self = this;
-    var timeout;
-    self.lock.writeLock(function (release) {
-        var state = self.service.getCharacteristic(Characteristic.MotionDetected).value;
-    	if(self.sw.code === code && state == false ) {
-		if (self.sw.timeout != null) {
-			timeout = self.sw.timeout;
-		} else {
-			timeout = 5000;
-		}
-        	self.log("%s is turned on", self.sw.name);
-        	self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
-		release();
-		iftttTrigger(self, self.config.makerkey, self.sw.trigger);
-		clearTimeout(self.Timer);
-		self.Timer = setTimeout(function() {
-			self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
-		}.bind(self), timeout);
-    	} else {
-	    	release();
-    	}
-    });
+    var onTimeout;
+    var offTimeout;
+    if (self.sw.code === code) {
+	    if (self.sw.onTimeout != null) {
+		    onTimeout = self.sw.onTimeout;
+	    } else {
+		    onTimeout = 3000;
+	    }
+	    clearTimeout(self.onTimer);
+	    self.onTimer = setTimeout(function() {
+		    self.log("%s Turned On", self.sw.name);
+		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
+	    }.bind(self), onTimeout);
+
+	    if (self.sw.offTimeout != null) {
+		    offTimeout = self.sw.offTimeout;
+	    } else {
+		    offTimeout = 360000;
+	    }
+	    clearTimeout(self.offTimer);
+	    self.offTimer = setTimeout(function() {
+		    self.log("%s Turned Off", self.sw.name);
+		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
+	    }.bind(self), offTimeout);
+    }
 }
 
 RCMotionAccessory.prototype.getServices = function() {
