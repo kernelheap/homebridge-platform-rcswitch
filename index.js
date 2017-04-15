@@ -39,6 +39,9 @@ RCSwitchPlatform.prototype.accessories = function(callback) {
     self.config.toggle.forEach(function(sw) {
     	self.accessories.push(new RCToggleAccessory(sw, self.log, self.config));
     });
+    self.config.motion.forEach(function(sw) {
+    	self.accessories.push(new RCMotionAccessory(sw, self.log, self.config));
+    });
 
     setTimeout(self.listen.bind(self),10);
     callback(self.accessories);
@@ -195,6 +198,59 @@ RCToggleAccessory.prototype.notify = function(code) {
 }
 
 RCToggleAccessory.prototype.getServices = function() {
+    var self = this;
+    var services = [];
+    var service = new Service.AccessoryInformation();
+    service.setCharacteristic(Characteristic.Name, self.name)
+        .setCharacteristic(Characteristic.Manufacturer, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.Model, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.SerialNumber, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.FirmwareRevision, '1.0.0')
+        .setCharacteristic(Characteristic.HardwareRevision, '1.0.0');
+    services.push(service);
+    services.push(self.service);
+    return services;
+}
+
+function RCMotionAccessory(sw, log, config) {
+    var self = this;
+    self.name = sw.name;
+    self.sw = sw;
+    self.log = log;
+    self.config = config;
+    self.currentState = false;
+    self.Timer;
+    self.lock = new rwlock();
+
+    self.service = new Service.MotionSensor(self.name);
+}
+
+RCMotionAccessory.prototype.notify = function(code) {
+    var self = this;
+    var timeout;
+    self.lock.writeLock(function (release) {
+        var state = self.service.getCharacteristic(Characteristic.MotionDetected).value;
+    	if(self.sw.code === code && state == false ) {
+		if (self.sw.timeout != null) {
+			timeout = self.sw.timeout;
+		} else {
+			timeout = 5000;
+		}
+        	self.log("%s is turned on", self.sw.name);
+        	self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
+		release();
+		iftttTrigger(self, self.config.makerkey, self.sw.trigger);
+		clearTimeout(self.Timer);
+		self.Timer = setTimeout(function() {
+			self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
+		}.bind(self), timeout);
+    	} else {
+	    	release();
+    	}
+    });
+}
+
+RCMotionAccessory.prototype.getServices = function() {
     var self = this;
     var services = [];
     var service = new Service.AccessoryInformation();
