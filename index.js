@@ -277,7 +277,7 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    self.offTimer = setTimeout(function() {
 		    self.log("%s Turned Off", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
-		    iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
+		    iftttTrigger(self, self.config.makerkey, self.sw.offTrigger);
 	    }.bind(self), offTimeout);
     }
 }
