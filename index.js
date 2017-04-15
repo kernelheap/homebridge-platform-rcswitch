@@ -265,6 +265,7 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    self.onTimer = setTimeout(function() {
 		    self.log("%s Turned On", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
+		    iftttTrigger(self, self.config.makeykey, self.sw.onTrigger);
 	    }.bind(self), onTimeout);
 
 	    if (self.sw.offTimeout != null) {
@@ -276,6 +277,7 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    self.offTimer = setTimeout(function() {
 		    self.log("%s Turned Off", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
+		    iftttTrigger(self, self.config.makeykey, self.sw.onTrigger);
 	    }.bind(self), offTimeout);
     }
 }
