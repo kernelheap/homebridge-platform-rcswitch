@@ -1,7 +1,6 @@
 var Service, Characteristic, LastUpdate;
 var rsswitch = require("./build/Release/rsswitch");
 var request = require("request");
-var rwlock = require("rwlock");
 
 module.exports = function(homebridge) {
     Service = homebridge.hap.Service;
@@ -125,29 +124,41 @@ function RCContactAccessory(sw, log, config) {
     self.log = log;
     self.config = config;
     self.currentState = false;
-    self.Timer;
-    self.lock = new rwlock();
+    self.onTimer;
+    self.offTimer;
 
     self.service = new Service.ContactSensor(self.name);
 }
 
 RCContactAccessory.prototype.notify = function(code) {
     var self = this;
-    self.lock.writeLock(function (release) {
-        var state = self.service.getCharacteristic(Characteristic.ContactSensorState).value;
-    	if(self.sw.on.code === code && state == false ) {
-        	self.log("%s is turned on", self.sw.name);
-        	self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
-		release();
-		iftttTrigger(self, self.config.makerkey, self.sw.on.trigger);
-		clearTimeout(self.Timer);
-		self.Timer = setTimeout(function() {
-			self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
-		}.bind(self), 5000);
-    	} else {
-	    	release();
-    	}
-    });
+    var onTimeout;
+    var offTimeout;
+    if (self.sw.on.code === code) {
+	    if (self.sw.onTimeout != null) {
+		    onTimeout = self.sw.on.timeout;
+	    } else {
+		    onTimeout = 1000;
+	    }
+	    clearTimeout(self.onTimer);
+	    self.onTimer = setTimeout(function() {
+		    self.log("%s Turned On", self.sw.name);
+		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
+		    iftttTrigger(self, self.config.makerkey, self.sw.on.trigger);
+	    }.bind(self), onTimeout);
+
+	    if (self.sw.offTimeout != null) {
+		    offTimeout = self.sw.off.timeout;
+	    } else {
+		    offTimeout = 5000;
+	    }
+	    clearTimeout(self.offTimer);
+	    self.offTimer = setTimeout(function() {
+		    self.log("%s Turned Off", self.sw.name);
+		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
+		    iftttTrigger(self, self.config.makerkey, self.sw.off.trigger);
+	    }.bind(self), offTimeout);
+    }
 }
 
 RCContactAccessory.prototype.getServices = function() {
@@ -221,35 +232,9 @@ function RCMotionAccessory(sw, log, config) {
     self.currentState = false;
     self.onTimer;
     self.offTimer;
-    self.lock = new rwlock();
 
     self.service = new Service.MotionSensor(self.name);
 }
-
-//RCMotionAccessory.prototype.notify = function(code) {
-  //  var self = this;
-   // var timeout;
-    //self.lock.writeLock(function (release) {
-      //  var state = self.service.getCharacteristic(Characteristic.MotionDetected).value;
-    	//if(self.sw.code === code && state == false ) {
-	//	if (self.sw.timeout != null) {
-	//		timeout = self.sw.timeout;
-	//	} else {
-	//		timeout = 5000;
-	//	}
-        //	self.log("%s is turned on", self.sw.name);
-        //	self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
-	//	release();
-	//	iftttTrigger(self, self.config.makerkey, self.sw.trigger);
-	//	clearTimeout(self.Timer);
-	//	self.Timer = setTimeout(function() {
-	//		self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
-	//	}.bind(self), timeout);
-    	//} else {
-	  //  	release();
-    	//}
-    //});
-//}
 
 RCMotionAccessory.prototype.notify = function(code) {
     var self = this;
