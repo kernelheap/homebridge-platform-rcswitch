@@ -128,6 +128,15 @@ function RCContactAccessory(sw, log, config) {
     self.offTimer;
 
     self.service = new Service.ContactSensor(self.name);
+    self.service.getCharacteristic(Characteristic.ContactSensorState).value = self.currentState;
+    self.service.getCharacteristic(Characteristic.ContactSensorState).on('get', function(cb) {
+        cb(null, self.currentState);
+    }.bind(self));
+
+    self.service.getCharacteristic(Characteristic.ContactSensorState).on('set', function(state, cb) {
+        self.currentState = state;
+        cb(null);
+    }.bind(self));
 }
 
 RCContactAccessory.prototype.notify = function(code) {
@@ -234,6 +243,16 @@ function RCMotionAccessory(sw, log, config) {
     self.offTimer;
 
     self.service = new Service.MotionSensor(self.name);
+    self.service.getCharacteristic(Characteristic.MotionDetected).value = self.currentState;
+
+    self.service.getCharacteristic(Characteristic.MotionDetected).on('get', function(cb) {
+        cb(null, self.currentState);
+    }.bind(self));
+
+    self.service.getCharacteristic(Characteristic.MotionDetected).on('set', function(state, cb) {
+        self.currentState = state;
+        cb(null);
+    }.bind(self));
 }
 
 RCMotionAccessory.prototype.notify = function(code) {
@@ -248,9 +267,11 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    }
 	    clearTimeout(self.onTimer);
 	    self.onTimer = setTimeout(function() {
+		    var prevState = self.service.getCharacteristic(Characteristic.MotionDetected).value;
 		    self.log("%s Turned On", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
-		    iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
+		    if (prevState == false)
+		    	iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
 	    }.bind(self), onTimeout);
 
 	    if (self.sw.offTimeout != null) {
