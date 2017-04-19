@@ -244,6 +244,7 @@ function RCMotionAccessory(sw, log, config) {
 
     self.service = new Service.MotionSensor(self.name);
     self.service.getCharacteristic(Characteristic.MotionDetected).value = self.currentState;
+    self.service.getCharacteristic(Characteristic.StatusActive).value = true;
 
     self.service.getCharacteristic(Characteristic.MotionDetected).on('get', function(cb) {
         cb(null, self.currentState);
