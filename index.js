@@ -124,8 +124,8 @@ function RCContactAccessory(sw, log, config) {
     self.log = log;
     self.config = config;
     self.currentState = false;
-    self.onTimer;
-    self.offTimer;
+    self.onTimer = null;
+    self.offTimer = null;
 
     self.service = new Service.ContactSensor(self.name);
     self.service.getCharacteristic(Characteristic.ContactSensorState).value = self.currentState;
@@ -144,28 +144,32 @@ RCContactAccessory.prototype.notify = function(code) {
     var onTimeout;
     var offTimeout;
     if (self.sw.on.code === code) {
-	    if (self.sw.onTimeout != null) {
+	    if (self.sw.on.timeout != null) {
 		    onTimeout = self.sw.on.timeout;
 	    } else {
 		    onTimeout = 1000;
 	    }
-	    clearTimeout(self.onTimer);
+	    if (self.onTimer != null)
+		    clearTimeout(self.onTimer);
 	    self.onTimer = setTimeout(function() {
 		    self.log("%s Turned On", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
 		    iftttTrigger(self, self.config.makerkey, self.sw.on.trigger);
+		    self.onTimer = null;
 	    }.bind(self), onTimeout);
 
-	    if (self.sw.offTimeout != null) {
+	    if (self.sw.off.timeout != null) {
 		    offTimeout = self.sw.off.timeout;
 	    } else {
 		    offTimeout = 5000;
 	    }
-	    clearTimeout(self.offTimer);
+	    if (self.offTimer != null)
+		    clearTimeout(self.offTimer);
 	    self.offTimer = setTimeout(function() {
 		    self.log("%s Turned Off", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
 		    iftttTrigger(self, self.config.makerkey, self.sw.off.trigger);
+		    self.offTimer = null;
 	    }.bind(self), offTimeout);
     }
 }
@@ -205,10 +209,11 @@ RCToggleAccessory.prototype._setOn = function(on, callback) {
 	var currentState = self.service.getCharacteristic(Characteristic.On).value;
 	self.log("Setting switch to " + on);
 
-	rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
-	if (currentState == false) {
+	if (on == true && currentState == false) {
+		rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
 		iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
-	} else {
+	} else if (on == false && currentState == true) {
+		rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
 		iftttTrigger(self, self.config.makerkey, self.sw.offTrigger);
 	}
 	callback();
@@ -239,8 +244,8 @@ function RCMotionAccessory(sw, log, config) {
     self.log = log;
     self.config = config;
     self.currentState = false;
-    self.onTimer;
-    self.offTimer;
+    self.onTimer = null;
+    self.offTimer = null;
 
     self.service = new Service.MotionSensor(self.name);
     self.service.getCharacteristic(Characteristic.MotionDetected).value = self.currentState;
@@ -266,13 +271,15 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    } else {
 		    onTimeout = 3000;
 	    }
-	    clearTimeout(self.onTimer);
+	    if (self.onTimer != null)
+		    clearTimeout(self.onTimer);
 	    self.onTimer = setTimeout(function() {
 		    var prevState = self.service.getCharacteristic(Characteristic.MotionDetected).value;
 		    self.log("%s Turned On", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(true);
 		    if (prevState == false)
 		    	iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
+		    self.onTimer = null;	
 	    }.bind(self), onTimeout);
 
 	    if (self.sw.offTimeout != null) {
@@ -280,11 +287,13 @@ RCMotionAccessory.prototype.notify = function(code) {
 	    } else {
 		    offTimeout = 360000;
 	    }
-	    clearTimeout(self.offTimer);
+	    if (self.offTimer != null)
+		    clearTimeout(self.offTimer);
 	    self.offTimer = setTimeout(function() {
 		    self.log("%s Turned Off", self.sw.name);
 		    self.service.getCharacteristic(Characteristic.MotionDetected).setValue(false);
 		    iftttTrigger(self, self.config.makerkey, self.sw.offTrigger);
+		    self.offTimer = null;
 	    }.bind(self), offTimeout);
     }
 }
