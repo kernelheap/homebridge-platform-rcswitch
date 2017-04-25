@@ -126,6 +126,7 @@ function RCContactAccessory(sw, log, config) {
     self.currentState = false;
     self.onTimer = null;
     self.offTimer = null;
+    self.autooffTimer = null;
 
     self.service = new Service.ContactSensor(self.name);
     self.service.getCharacteristic(Characteristic.ContactSensorState).value = self.currentState;
@@ -143,6 +144,7 @@ RCContactAccessory.prototype.notify = function(code) {
     var self = this;
     var onTimeout;
     var offTimeout;
+    var autoofftimeout;
     if (self.sw.on.code === code) {
 	    if (self.sw.on.timeout != null) {
 		    onTimeout = self.sw.on.timeout;
@@ -158,10 +160,22 @@ RCContactAccessory.prototype.notify = function(code) {
 		    self.onTimer = null;
 	    }.bind(self), onTimeout);
 
+	    if (self.sw.off.autotimeout != null) {
+		    autooffTimeout = self.sw.off.autotimeout;
+		    if (self.autooffTimer != null)
+			    clearTimeout(self.autooffTimer);
+		    self.autooffTimer = setTimeout(function() {
+			    self.log("%s Turned Off", self.sw.name);
+			    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
+			    iftttTrigger(self, self.config.makerkey, self.sw.off.trigger);
+			    self.autooffTimer = null;
+		    }.bind(self), autooffTimeout);
+	    }
+    } else if (self.sw.off.code === code) {
 	    if (self.sw.off.timeout != null) {
 		    offTimeout = self.sw.off.timeout;
 	    } else {
-		    offTimeout = 5000;
+		    offTimeout = 1000;
 	    }
 	    if (self.offTimer != null)
 		    clearTimeout(self.offTimer);
