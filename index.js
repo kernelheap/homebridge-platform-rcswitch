@@ -144,12 +144,12 @@ function RCGarageAccessory(sw, log, config) {
     	    .on('set', (value, callback) => {
 		    var state = self.service.getCharacteristic(
 				    Characteristic.CurrentDoorState).value;
-		    if (state != Characteristic.CurrentDoorState.OPENING &&
+		    if (state == Characteristic.CurrentDoorState.CLOSED &&
 				value === Characteristic.TargetDoorState.OPEN) {
 		  	self.log('Garage: 3');
 		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
 					self.sw.pulse);
-		    } else if (state != Characteristic.CurrentDoorState.CLOSING
+		    } else if (state == Characteristic.CurrentDoorState.OPEN
 			  && value === Characteristic.TargetDoorState.CLOSED) {
 		  	self.log('Garage: 4');
 		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
