@@ -223,12 +223,33 @@ RCToggleAccessory.prototype._setOn = function(on, callback) {
 	var currentState = self.service.getCharacteristic(Characteristic.On).value;
 	self.log("Setting switch to " + on);
 
-	if (on == true && currentState == false) {
-		rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
-		iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
-	} else if (on == false && currentState == true) {
-		rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
-		iftttTrigger(self, self.config.makerkey, self.sw.offTrigger);
+	if (self.sw.timeout == null) {
+		if (on == true && currentState == false) {
+			rsswitch.send(self.config.send_pin, self.sw.code,
+					self.sw.pulse);
+			iftttTrigger(self, self.config.makerkey,
+					self.sw.onTrigger);
+		} else if (on == false && currentState == true) {
+			rsswitch.send(self.config.send_pin, self.sw.code,
+					self.sw.pulse);
+			iftttTrigger(self, self.config.makerkey,
+					self.sw.offTrigger);
+		}
+	} else {
+		if (on) {
+			rsswitch.send(self.config.send_pin, self.sw.code, self.sw.pulse);
+			iftttTrigger(self, self.config.makerkey, self.sw.onTrigger);
+
+			self.Timer = setTimeout(function() {
+					self.log("%s Turned Off", self.sw.name);
+					self.service.getCharacteristic(Characteristic.On).setValue(false);
+					iftttTrigger(self, self.config.makerkey,
+							self.sw.offTrigger);
+					self.Timer = null;
+			}.bind(self), self.sw.timeout);
+		} else {
+			clearTimeout(self.Timer);
+		}
 	}
 	callback();
 }
