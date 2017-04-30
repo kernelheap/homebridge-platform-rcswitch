@@ -41,9 +41,26 @@ RCSwitchPlatform.prototype.accessories = function(callback) {
     self.config.motion.forEach(function(sw) {
     	self.accessories.push(new RCMotionAccessory(sw, self.log, self.config));
     });
+    self.config.garage.forEach(function(sw) {
+    	self.accessories.push(new RCGarageAccessory(sw, self.log, self.config));
+    });
 
     setTimeout(self.listen.bind(self),10);
     callback(self.accessories);
+}
+
+function iftttTrigger(obj, key, trigger) {
+	if (key != null && trigger != null) {
+		var url = "https://maker.ifttt.com/trigger/"+trigger+"/with/key/"+key;
+		var method = "get";
+		request({ url: url, method: method }, function(err, response) {
+			if (err) {
+				obj.log("There was a problem sending command " + url);
+			} else {
+				obj.log(" Sent command " + url);
+			}
+		});
+	}
 }
 
 function RCSwitchAccessory(sw, log, config) {
@@ -71,20 +88,6 @@ function RCSwitchAccessory(sw, log, config) {
         }
         cb(null);
     }.bind(self));
-}
-
-function iftttTrigger(obj, key, trigger) {
-	if (key != null && trigger != null) {
-		var url = "https://maker.ifttt.com/trigger/"+trigger+"/with/key/"+key;
-		var method = "get";
-		request({ url: url, method: method }, function(err, response) {
-			if (err) {
-				obj.log("There was a problem sending command " + url);
-			} else {
-				obj.log(" Sent command " + url);
-			}
-		});
-	}
 }
 
 RCSwitchAccessory.prototype.notify = function(code) {
@@ -116,6 +119,97 @@ RCSwitchAccessory.prototype.getServices = function() {
     services.push(self.service);
     return services;
 }
+
+function RCGarageAccessory(sw, log, config) {
+    var self = this;
+    self.name = sw.name;
+    self.sw = sw;
+    self.log = log;
+    self.config = config;
+    self.openTimer;
+    self.closeBatchTimer;
+
+    self.service = new Service.GarageDoorOpener(self.name);
+    self.service.setCharacteristic(Characteristic.TargetDoorState,
+		    Characteristic.TargetDoorState.CLOSED);
+    self.service.setCharacteristic(Characteristic.CurrentDoorState,
+		    Characteristic.CurrentDoorState.CLOSED);
+    self.service.setCharacteristic(Characteristic.ObstructionDetected, false);
+
+    self.service.getCharacteristic(Characteristic.TargetDoorState)
+	    .on('get', (callback) => {
+		  callback(null, self.service.getCharacteristic(
+			Characteristic.TargetDoorState).value);
+	    })
+    	    .on('set', (value, callback) => {
+		    var state = self.service.getCharacteristic(
+				    Characteristic.CurrentDoorState).value;
+		    if (value === Characteristic.TargetDoorState.OPEN) {
+		  	self.log('Garage: 3');
+		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
+					self.sw.pulse);
+		    	callback();
+		    } else {
+		  	self.log('Garage: 4');
+		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
+					self.sw.pulse);
+			//self.service.setCharacteristic(
+			//	Characteristic.CurrentDoorState,
+			//	Characteristic.CurrentDoorState.CLOSING);
+
+		    	callback();
+		    }
+	    });
+}
+
+RCGarageAccessory.prototype.notify = function(code) {
+    var self = this;
+    var key = self.config.makerkey;
+    if(this.sw.openCode === code) {
+	clearTimeout(self.openTimer);
+	self.log("%s is opening", self.sw.name);
+        self.service.getCharacteristic(Characteristic.TargetDoorState).
+		setValue(Characteristic.TargetDoorState.OPEN);
+	self.service.setCharacteristic(Characteristic.CurrentDoorState,
+				Characteristic.CurrentDoorState.OPENING);
+	self.openTimer = setTimeout(function() {
+ 		self.log("%s is opened", self.sw.name);
+		self.service.setCharacteristic(Characteristic.CurrentDoorState,
+				Characteristic.CurrentDoorState.OPEN);
+		iftttTrigger(self, self.config.makerkey, self.sw.openTrigger);
+		self.openTimer = null;
+	}.bind(self), self.sw.openingTime * 1000);
+    } else if (this.sw.closeCode === code) {
+	clearTimeout(self.closeBatchTimer);
+	self.closeBatchTimer = setTimeout(function() {
+ 		self.log("%s is closed", self.sw.name);
+		self.service.setCharacteristic(Characteristic.CurrentDoorState,
+				Characteristic.CurrentDoorState.CLOSED);
+		self.service.getCharacteristic(Characteristic.TargetDoorState).
+			setValue(Characteristic.TargetDoorState.CLOSED);
+
+		iftttTrigger(self, self.config.makerkey, self.sw.closeTrigger);
+		self.closeBatchTimer = null;
+	}.bind(self), 1000);
+    } 
+}
+
+RCGarageAccessory.prototype.getServices = function() {
+    var self = this;
+    var services = [];
+    var service = new Service.AccessoryInformation();
+    service.setCharacteristic(Characteristic.Name, self.name)
+        .setCharacteristic(Characteristic.Manufacturer, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.Model, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.SerialNumber, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.FirmwareRevision, '1.0.0')
+        .setCharacteristic(Characteristic.HardwareRevision, '1.0.0');
+    services.push(service);
+    services.push(self.service);
+    return services;
+}
+
+
 
 function RCContactAccessory(sw, log, config) {
     var self = this;
