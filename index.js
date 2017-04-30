@@ -144,21 +144,21 @@ function RCGarageAccessory(sw, log, config) {
     	    .on('set', (value, callback) => {
 		    var state = self.service.getCharacteristic(
 				    Characteristic.CurrentDoorState).value;
-		    if (value === Characteristic.TargetDoorState.OPEN) {
+		    if (state != Characteristic.CurrentDoorState.OPENING &&
+				value === Characteristic.TargetDoorState.OPEN) {
 		  	self.log('Garage: 3');
 		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
 					self.sw.pulse);
-		    	callback();
-		    } else {
+		    } else if (state != Characteristic.CurrentDoorState.CLOSING
+			  && value === Characteristic.TargetDoorState.CLOSED) {
 		  	self.log('Garage: 4');
 		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
 					self.sw.pulse);
 			//self.service.setCharacteristic(
 			//	Characteristic.CurrentDoorState,
 			//	Characteristic.CurrentDoorState.CLOSING);
-
-		    	callback();
 		    }
+		    callback();
 	    });
 }
 
@@ -168,10 +168,10 @@ RCGarageAccessory.prototype.notify = function(code) {
     if(this.sw.openCode === code) {
 	clearTimeout(self.openTimer);
 	self.log("%s is opening", self.sw.name);
+	self.service.setCharacteristic(Characteristic.CurrentDoorState,
+			Characteristic.CurrentDoorState.OPENING);
         self.service.getCharacteristic(Characteristic.TargetDoorState).
 		setValue(Characteristic.TargetDoorState.OPEN);
-	self.service.setCharacteristic(Characteristic.CurrentDoorState,
-				Characteristic.CurrentDoorState.OPENING);
 	self.openTimer = setTimeout(function() {
  		self.log("%s is opened", self.sw.name);
 		self.service.setCharacteristic(Characteristic.CurrentDoorState,
@@ -184,11 +184,15 @@ RCGarageAccessory.prototype.notify = function(code) {
 	self.closeBatchTimer = setTimeout(function() {
  		self.log("%s is closed", self.sw.name);
 		self.service.setCharacteristic(Characteristic.CurrentDoorState,
-				Characteristic.CurrentDoorState.CLOSED);
+				Characteristic.CurrentDoorState.CLOSING);
 		self.service.getCharacteristic(Characteristic.TargetDoorState).
 			setValue(Characteristic.TargetDoorState.CLOSED);
+		setTimeout(function() {
+		 self.service.setCharacteristic(Characteristic.CurrentDoorState,
+				Characteristic.CurrentDoorState.CLOSED);
+		 iftttTrigger(self, self.config.makerkey, self.sw.closeTrigger);
+		}.bind(self), 1000);
 
-		iftttTrigger(self, self.config.makerkey, self.sw.closeTrigger);
 		self.closeBatchTimer = null;
 	}.bind(self), 1000);
     } 
