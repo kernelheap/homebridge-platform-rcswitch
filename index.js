@@ -44,6 +44,10 @@ RCSwitchPlatform.prototype.accessories = function(callback) {
     self.config.garage.forEach(function(sw) {
     	self.accessories.push(new RCGarageAccessory(sw, self.log, self.config));
     });
+    self.config.ifttt.forEach(function(sw) {
+    	self.accessories.push(new RCIftttAccessory(sw, self.log, self.config,
+				self.accessories));
+    });
 
     setTimeout(self.listen.bind(self),10);
     callback(self.accessories);
@@ -62,6 +66,69 @@ function iftttTrigger(obj, key, trigger) {
 		});
 	}
 }
+function RCIftttAccessory(sw, log, config, accessories) {
+    var self = this;
+    self.name = sw.name;
+    self.sw = sw;
+    self.log = log;
+    self.config = config;
+    self.accessories = accessories;
+    self.Timer;
+
+    self.service = new Service.Switch(self.name);
+    self.service.getCharacteristic(Characteristic.On)
+	    .on('set', self._setOn.bind(self));
+}
+
+RCIftttAccessory.prototype._setOn = function(on, callback) {
+
+	var self = this;
+	var key = self.config.makerkey;
+	var state;
+
+	self.log("Setting " + self.name + " switch to " + on);
+	if (on) {
+		self.accessories.forEach(function (accessory) {
+			state = accessory.isOn();
+			if (state == true) {
+				iftttTrigger(self, key, "Remind-" +
+					accessory.name.replace(/\s+/g, '-'));
+			}
+		});
+		clearTimeout(self.Timer);
+		self.Timer = setTimeout(function() {
+			self.service.getCharacteristic(Characteristic.On).
+				setValue(false);
+		}.bind(self), self.sw.delayTime);
+	} else { 
+		clearTimeout(self.Timer);
+	}
+
+	callback();
+}
+
+RCIftttAccessory.prototype.isOn = function() {
+	return false;
+}
+
+RCIftttAccessory.prototype.notify = function(code) {
+}
+
+RCIftttAccessory.prototype.getServices = function() {
+    var self = this;
+    var services = [];
+    var service = new Service.AccessoryInformation();
+    service.setCharacteristic(Characteristic.Name, self.name)
+        .setCharacteristic(Characteristic.Manufacturer, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.Model, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.SerialNumber, 'Raspberry Pi')
+        .setCharacteristic(Characteristic.FirmwareRevision, '1.0.0')
+        .setCharacteristic(Characteristic.HardwareRevision, '1.0.0');
+    services.push(service);
+    services.push(self.service);
+    return services;
+}
+
 
 function RCSwitchAccessory(sw, log, config) {
     var self = this;
@@ -88,6 +155,10 @@ function RCSwitchAccessory(sw, log, config) {
         }
         cb(null);
     }.bind(self));
+}
+
+RCSwitchAccessory.prototype.isOn = function() {
+	return this.service.getCharacteristic(Characteristic.On).value;
 }
 
 RCSwitchAccessory.prototype.notify = function(code) {
@@ -154,12 +225,13 @@ function RCGarageAccessory(sw, log, config) {
 		  	self.log('Garage: 4');
 		    	rsswitch.send(self.config.send_pin, self.sw.clickCode,
 					self.sw.pulse);
-			//self.service.setCharacteristic(
-			//	Characteristic.CurrentDoorState,
-			//	Characteristic.CurrentDoorState.CLOSING);
 		    }
 		    callback();
 	    });
+}
+
+RCGarageAccessory.prototype.isOn = function() {
+	return (this.service.getCharacteristic(Characteristic.CurrentDoorState).value != Characteristic.CurrentDoorState.CLOSED);
 }
 
 RCGarageAccessory.prototype.notify = function(code) {
@@ -236,6 +308,10 @@ function RCContactAccessory(sw, log, config) {
         self.currentState = state;
         cb(null);
     }.bind(self));
+}
+
+RCContactAccessory.prototype.isOn = function() {
+	return this.service.getCharacteristic(Characteristic.ContactSensorState).value;
 }
 
 RCContactAccessory.prototype.notify = function(code) {
@@ -331,6 +407,9 @@ function RCToggleAccessory(sw, log, config) {
 	    .on('set', self._setOn.bind(self));
 }
 
+RCToggleAccessory.prototype.isOn = function() {
+	return this.service.getCharacteristic(Characteristic.On).value;
+}
 RCToggleAccessory.prototype._setOn = function(on, callback) {
 
 	var self = this;
@@ -408,6 +487,10 @@ function RCMotionAccessory(sw, log, config) {
         self.currentState = state;
         cb(null);
     }.bind(self));
+}
+
+RCMotionAccessory.prototype.isOn = function() {
+	return this.service.getCharacteristic(Characteristic.MotionDetected).value;
 }
 
 RCMotionAccessory.prototype.notify = function(code) {
