@@ -243,6 +243,7 @@ RCContactAccessory.prototype.notify = function(code) {
     var onTimeout;
     var offTimeout;
     var autoofftimeout;
+    var prevState;
     if (self.sw.on.code === code) {
 	    if (self.sw.on.timeout != null) {
 		    onTimeout = self.sw.on.timeout;
@@ -251,10 +252,16 @@ RCContactAccessory.prototype.notify = function(code) {
 	    }
 	    if (self.onTimer != null)
 		    clearTimeout(self.onTimer);
+	    if (self.offTimer != null)
+		    clearTimeout(self.offTimer);
 	    self.onTimer = setTimeout(function() {
 		    self.log("%s Turned On", self.sw.name);
+		    prevState = self.service.getCharacteristic(
+				    Characteristic.ContactSensorState).value;
 		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(true);
-		    iftttTrigger(self, self.config.makerkey, self.sw.on.trigger);
+		    if (prevState == false)
+		    	iftttTrigger(self, self.config.makerkey,
+					    self.sw.on.trigger);
 		    self.onTimer = null;
 	    }.bind(self), onTimeout);
 
@@ -264,8 +271,13 @@ RCContactAccessory.prototype.notify = function(code) {
 			    clearTimeout(self.autooffTimer);
 		    self.autooffTimer = setTimeout(function() {
 			    self.log("%s Turned Off", self.sw.name);
+			    prevState = self.service.getCharacteristic(
+				    Characteristic.ContactSensorState).value;
+
 			    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
-			    iftttTrigger(self, self.config.makerkey, self.sw.off.trigger);
+			    if (prevState == true)
+			    	iftttTrigger(self, self.config.makerkey,
+						self.sw.off.trigger);
 			    self.autooffTimer = null;
 		    }.bind(self), autooffTimeout);
 	    }
@@ -279,8 +291,12 @@ RCContactAccessory.prototype.notify = function(code) {
 		    clearTimeout(self.offTimer);
 	    self.offTimer = setTimeout(function() {
 		    self.log("%s Turned Off", self.sw.name);
+		    prevState = self.service.getCharacteristic(
+				    Characteristic.ContactSensorState).value;
 		    self.service.getCharacteristic(Characteristic.ContactSensorState).setValue(false);
-		    iftttTrigger(self, self.config.makerkey, self.sw.off.trigger);
+		    if (prevState == true)
+		    	iftttTrigger(self, self.config.makerkey,
+					self.sw.off.trigger);
 		    self.offTimer = null;
 	    }.bind(self), offTimeout);
     }
