@@ -1,6 +1,7 @@
 var Service, Characteristic, LastUpdate;
 var rsswitch = require("./build/Release/rsswitch");
 var request = require("request");
+var dash = require('node-dash-button');
 
 module.exports = function(homebridge) {
     Service = homebridge.hap.Service;
@@ -155,6 +156,15 @@ function RCSwitchAccessory(sw, log, config) {
         }
         cb(null);
     }.bind(self));
+
+    if (self.sw.mac != null) {
+	    for (var i = 0; i < self.sw.mac.length; i++) {
+		    var dashButton = dash(self.sw.mac[i], null, null, 'all');
+		    dashButton.on('detected', function() {
+			self.service.setCharacteristic(Characteristic.On, !self.currentState);
+		    }.bind(this));
+	    }
+    }
 }
 
 RCSwitchAccessory.prototype.isOn = function() {
