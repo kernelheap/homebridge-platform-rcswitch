@@ -415,6 +415,16 @@ function RCToggleAccessory(sw, log, config) {
     self.service = new Service.Switch(self.name);
     self.service.getCharacteristic(Characteristic.On)
 	    .on('set', self._setOn.bind(self));
+    
+    if (self.sw.mac != null) {
+	    for (var i = 0; i < self.sw.mac.length; i++) {
+		    var dashButton = dash(self.sw.mac[i], null, null, 'all');
+		    dashButton.on('detected', function() {
+			self.service.setCharacteristic(Characteristic.On, !self.currentState);
+		    }.bind(this));
+	    }
+    }
+
 }
 
 RCToggleAccessory.prototype.isOn = function() {
@@ -428,11 +438,13 @@ RCToggleAccessory.prototype._setOn = function(on, callback) {
 
 	if (self.sw.timeout == null) {
 		if (on == true && currentState == false) {
+			self.currentState = true;
 			rsswitch.send(self.config.send_pin, self.sw.code,
 					self.sw.pulse);
 			iftttTrigger(self, self.config.makerkey,
 					self.sw.onTrigger);
 		} else if (on == false && currentState == true) {
+			self.currentState = false;
 			rsswitch.send(self.config.send_pin, self.sw.code,
 					self.sw.pulse);
 			iftttTrigger(self, self.config.makerkey,
