@@ -208,6 +208,7 @@ function RCGarageAccessory(sw, log, config) {
     self.log = log;
     self.config = config;
     self.openTimer;
+    self.openBatchTimer;
     self.closeBatchTimer;
 
     self.service = new Service.GarageDoorOpener(self.name);
@@ -248,19 +249,22 @@ RCGarageAccessory.prototype.notify = function(code) {
     var self = this;
     var key = self.config.makerkey;
     if(this.sw.openCode === code) {
-	clearTimeout(self.openTimer);
-	self.log("%s is opening", self.sw.name);
-	self.service.setCharacteristic(Characteristic.CurrentDoorState,
-			Characteristic.CurrentDoorState.OPENING);
-        self.service.getCharacteristic(Characteristic.TargetDoorState).
-		setValue(Characteristic.TargetDoorState.OPEN);
-	self.openTimer = setTimeout(function() {
- 		self.log("%s is opened", self.sw.name);
-		self.service.setCharacteristic(Characteristic.CurrentDoorState,
-				Characteristic.CurrentDoorState.OPEN);
-		iftttTrigger(self, self.config.makerkey, self.sw.openTrigger);
-		self.openTimer = null;
-	}.bind(self), self.sw.openingTime * 1000);
+	    clearTimeout(self.openTimer);
+	    clearTimeout(self.openBatchTimer);
+	    self.openBatchTimer = setTimeout(function() {
+			    self.log("%s is opening", self.sw.name);
+			    self.service.setCharacteristic(Characteristic.CurrentDoorState,
+					    Characteristic.CurrentDoorState.OPENING);
+			    self.service.getCharacteristic(Characteristic.TargetDoorState).
+			    	setValue(Characteristic.TargetDoorState.OPEN);
+			    self.openTimer = setTimeout(function() {
+					    self.log("%s is opened", self.sw.name);
+					    self.service.setCharacteristic(Characteristic.CurrentDoorState,
+							    Characteristic.CurrentDoorState.OPEN);
+					    iftttTrigger(self, self.config.makerkey, self.sw.openTrigger);
+					    self.openTimer = null;
+			    }.bind(self), self.sw.openingTime * 1000);
+	    }.bind(self), 1000);
     } else if (this.sw.closeCode === code) {
 	clearTimeout(self.closeBatchTimer);
 	self.closeBatchTimer = setTimeout(function() {
@@ -270,9 +274,9 @@ RCGarageAccessory.prototype.notify = function(code) {
 		self.service.getCharacteristic(Characteristic.TargetDoorState).
 			setValue(Characteristic.TargetDoorState.CLOSED);
 		setTimeout(function() {
-		 self.service.setCharacteristic(Characteristic.CurrentDoorState,
-				Characteristic.CurrentDoorState.CLOSED);
-		 iftttTrigger(self, self.config.makerkey, self.sw.closeTrigger);
+				self.service.setCharacteristic(Characteristic.CurrentDoorState,
+						Characteristic.CurrentDoorState.CLOSED);
+				iftttTrigger(self, self.config.makerkey, self.sw.closeTrigger);
 		}.bind(self), 1000);
 
 		self.closeBatchTimer = null;
