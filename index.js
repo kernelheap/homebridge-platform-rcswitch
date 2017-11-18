@@ -264,7 +264,7 @@ RCGarageAccessory.prototype.notify = function(code) {
 					    iftttTrigger(self, self.config.makerkey, self.sw.openTrigger);
 					    self.openTimer = null;
 			    }.bind(self), self.sw.openingTime * 1000);
-	    }.bind(self), 1000);
+	    }.bind(self), 2000);
     } else if (this.sw.closeCode === code) {
 	clearTimeout(self.closeBatchTimer);
 	self.closeBatchTimer = setTimeout(function() {
